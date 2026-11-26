@@ -30,14 +30,15 @@ if file is not None:
             issues = pd.Series("", index=df.index, dtype="object")
             def mark(mask, message):
                 issues.loc[mask.fillna(False)] += message + "; "
-            mark(df['ID_Pedido'].isna() | df['ID_Pedido'].duplicated(keep=False), 'ID vacío o duplicado')
+            ids = df['ID_Pedido'].astype('string').str.strip()
+            mark(ids.isna() | ids.eq('') | ids.duplicated(keep=False), 'ID vacío o duplicado')
             lat = pd.to_numeric(df['Latitud'], errors='coerce')
             lon = pd.to_numeric(df['Longitud'], errors='coerce')
             mark(~lat.between(-13, -11) | ~lon.between(-78, -76), 'Coordenadas inválidas o fuera del ámbito')
             weight = pd.to_numeric(df['Volumen_Carga_kg'], errors='coerce')
             mark(weight.isna() | (weight <= 0) | (weight > 800), 'Peso inválido o mayor a 800 kg')
             service = pd.to_numeric(df['Tiempo_Servicio_min'], errors='coerce')
-            mark(service.isna() | (service < 0), 'Tiempo de servicio inválido')
+            mark(service.isna() | (service < 0) | (service % 1 != 0), 'Tiempo de servicio inválido')
             windows = df['Ventana_Horaria'].fillna('').astype(str)
             parts = windows.str.extract(r'^\s*(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})\s*$').apply(pd.to_numeric, errors='coerce')
             start = parts[0]*60+parts[1]; end = parts[2]*60+parts[3]
@@ -50,3 +51,4 @@ if file is not None:
             st.download_button('Descargar diagnóstico sin datos personales', result.to_csv(index=False).encode('utf-8-sig'), 'diagnostico.csv', 'text/csv')
     except Exception as exc:
         st.error(f'No se pudo leer el archivo: {exc}')
+
